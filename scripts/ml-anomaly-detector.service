@@ -1,0 +1,37 @@
+[Unit]
+Description=ML Anomaly Detection Service
+After=network.target smart-incident-predictor.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/opt/smart-incident-predictor
+Environment=PYTHONPATH=/opt/smart-incident-predictor/src
+Environment=ENVIRONMENT=AWS_EC2
+ExecStart=/opt/smart-incident-predictor/venv/bin/python src/ml/optimized_anomaly_detector.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=15
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Resource limits for t2.micro (lower than API service)
+MemoryLimit=384M
+CPUQuota=60%
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/smart-incident-predictor/logs /opt/smart-incident-predictor/data
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ml-anomaly-detector
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,75 @@
+# Dockerfile for AWS t2.micro Optimized Deployment
+# Multi-stage build for minimal image size
+
+# Stage 1: Builder
+FROM python:3.9-slim as builder
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/src
+
+# Install system dependencies (minimal)
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy requirements and install Python dependencies
+COPY requirements_t2micro.txt /tmp/
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r /tmp/requirements_t2micro.txt
+
+# Stage 2: Runtime
+FROM python:3.9-slim
+
+# Create non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/src
+ENV ENVIRONMENT=DOCKER
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y \
+    curl \
+    jq \
+    htop \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Create application directories
+RUN mkdir -p /app/{src,logs,data,config} && \
+    chown -R appuser:appuser /app
+
+# Copy application code
+WORKDIR /app
+COPY --chown=appuser:appuser src/ ./src/
+COPY --chown=appuser:appuser config.yaml ./config/
+COPY --chown=appuser:appuser requirements_t2micro.txt ./
+
+# Set permissions
+RUN chmod +x src/app/*.py && \
+    chmod +x src/ml/*.py
+
+# Switch to non-root user
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
+
+# Expose port
+EXPOSE 5000
+
+# Default command (can be overridden)
+CMD ["python", "src/app/optimized_app.py"]

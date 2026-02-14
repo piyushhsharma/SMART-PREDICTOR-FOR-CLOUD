@@ -53,7 +53,7 @@ module "ec2" {
   security_group_ids  = [module.vpc.security_group_id]
   iam_instance_profile = module.iam.ec2_instance_profile_name
   
-  user_data = templatefile("${path.module}/user_data.sh", {
+  user_data = templatefile("${path.module}/../user_data_t2micro.sh", {
     project_name = var.project_name
     environment  = var.environment
   })

@@ -1,0 +1,37 @@
+[Unit]
+Description=Smart Incident Predictor API Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/opt/smart-incident-predictor
+Environment=PYTHONPATH=/opt/smart-incident-predictor/src
+Environment=ENVIRONMENT=AWS_EC2
+ExecStart=/opt/smart-incident-predictor/venv/bin/python src/app/optimized_app.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Resource limits for t2.micro
+MemoryLimit=512M
+CPUQuota=80%
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/smart-incident-predictor/logs /opt/smart-incident-predictor/data
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=smart-incident-predictor
+
+[Install]
+WantedBy=multi-user.target
