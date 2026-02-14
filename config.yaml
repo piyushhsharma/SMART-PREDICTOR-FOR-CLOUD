@@ -1,0 +1,117 @@
+# Smart Incident Predictor Configuration
+# Optimized for AWS t2.micro (1 vCPU, 1GB RAM)
+
+# Environment Settings
+environment: "AWS_EC2"  # LOCAL, AWS_EC2
+debug: false
+log_level: "INFO"
+
+# Application Settings
+app:
+  host: "0.0.0.0"
+  port: 5000
+  workers: 1  # Single worker for t2.micro
+  timeout: 30
+
+# ML Service Settings (Optimized for Low Resources)
+ml:
+  # Model Configuration
+  model:
+    algorithm: "IsolationForest"
+    contamination: 0.1
+    n_estimators: 50  # Reduced from 100 for memory
+    max_samples: "auto"
+    random_state: 42
+  
+  # Training Configuration
+  training:
+    mode: "startup"  # startup, scheduled, disabled
+    schedule: "0 2 * * *"  # 2 AM daily if scheduled
+    min_samples: 50  # Reduced from 100
+    max_samples: 500  # Limit training data
+    retrain_interval: 3600  # 1 hour (disabled for t2.micro)
+  
+  # Inference Configuration
+  inference:
+    polling_interval: 60  # seconds
+    batch_size: 10  # Small batches for memory
+    feature_limit: 8  # Reduced from 15 features
+    sliding_window: 300  # 5 minutes
+    memory_threshold_mb: 512  # Stop if memory > 512MB
+  
+  # Feature Selection (Memory Optimized)
+  features:
+    enabled:
+      - "cpu_current"
+      - "memory_current" 
+      - "error_rate"
+      - "response_time_avg"
+      - "log_error_ratio"
+      - "system_stress_score"
+      - "anomaly_likelihood"
+      - "cpu_trend"
+    disabled:
+      - "network_io"
+      - "disk_io"
+      - "process_metrics"
+      - "connection_metrics"
+
+# Monitoring Settings (Low Resource)
+monitoring:
+  cloudwatch:
+    enabled: true
+    region: "us-east-1"
+    metrics_poll_interval: 60  # seconds
+    log_retention_days: 7  # Reduced from 14/30
+    batch_size: 20  # Reduced batch size
+  
+  system:
+    enabled: true
+    collection_interval: 120  # 2 minutes (reduced frequency)
+    memory_limit_mb: 256  # Limit system monitoring memory
+
+# Alerting Settings
+alerting:
+  enabled: true
+  sns_topic_arn: ""  # Auto-detected
+  thresholds:
+    low_risk: (0, 30)
+    medium_risk: (31, 70)
+    high_risk: (71, 100)
+  cooldown_seconds: 300  # 5 minutes
+  max_alerts_per_hour: 10  # Rate limiting
+
+# Resource Limits (t2.micro Optimized)
+resources:
+  max_memory_mb: 900  # Leave 100MB for OS
+  max_cpu_percent: 80  # Leave headroom
+  disk_space_mb: 1024  # 1GB limit
+  max_processes: 50
+
+# Performance Tuning
+performance:
+  gc_threshold: 100  # Aggressive garbage collection
+  log_rotation_mb: 50  # Rotate logs at 50MB
+  log_backup_count: 3  # Keep only 3 backups
+  connection_pool_size: 5  # Small connection pools
+  request_timeout: 10  # Quick timeouts
+
+# Health Check Settings
+health:
+  enabled: true
+  endpoint: "/health"
+  check_interval: 30  # seconds
+  timeout: 5  # seconds
+  failure_threshold: 3  # Fail after 3 consecutive failures
+
+# Security Settings
+security:
+  cors_origins: ["*"]
+  max_request_size_mb: 1
+  rate_limit_per_minute: 60
+
+# Development Settings
+development:
+  mock_metrics: false
+  simulate_anomalies: false
+  log_all_requests: false
